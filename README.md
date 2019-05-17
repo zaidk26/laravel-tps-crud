@@ -12,7 +12,7 @@ ODBC_PASSWORD=123456
 
 # Install
 
-Copy class to App\Tps folder
+Copy class to App\Odbc folder
 
 # Use
 ```
@@ -28,6 +28,11 @@ class ApiController extends Controller
         //Fetchs first 10 rows as a laravel colelction
 
         dd($jobs);
+        
+        //returns the number of rows affected
+        $tps->delete('Your query');
+        $tps->update('Your query');
+        $tps->create('Your query');
 
     }
 }
