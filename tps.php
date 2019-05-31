@@ -1,45 +1,49 @@
 <?php
 namespace App\Odbc;
+use Illuminate\Support\Facades\Cache;
 
 class Tps{
 
-  private $driver;
-  private $user;
-  private $pass;
-  private $path;
-  private $connectionString;
-  private $connection;
-  private $dateFields = "%DATE%|%Date%|%date%";
-  private $timeFields = "%TIME%|%Time%|%time%";
-
-
-  /**
-   * Constructor
-   */
-  public function __construct() {
-    $this->user   = '';
-    $this->driver = env('ODBC_DRIVER');
-    $this->pass   = env('ODBC_PASSWORD');
-    $this->path   = env('ODBC_DATABASE'); 
-    $this->connectionString =  "Driver={$this->driver};Dbq={$this->path};Datefield={$this->dateFields};Timefield={$this->timeFields}";
-  }
+  private $connection; 
+  private $lf;
 
   /**
    * Get a collection of result of read query
    */
   public function read($query,$from=0,$take=100000){
-    try{
 
-      $this->connect();      
-      return $this->resultToCollection(odbc_exec($this->connection,$query),$from,$take);
-      
-    }catch(\Exception $ex){
-      throw new \Exception($ex);    
+    $this->canConnect(1);
+
+    $this->connect(); 
+    $result = collect([]);  
+
+    try{
+      $result = $this->resultToCollection(odbc_exec($this->connection,$query),$from,$take);      
+    }catch(\Exception $ex){    
+      throw new Exception($ex); 
     }finally{
       $this->close();
+      return $result;
+      
     }
   }
 
+  /**
+   * Check if connection can be made
+   * Limit to less then 2 connections at a given time
+   */
+  private function canConnect($tries){  
+   
+    if($tries > 10){ die('Can get Access'); } 
+
+    $this->lf = fopen('commit.lock', 'r+');
+    if (!flock($this->lf, LOCK_EX)) {
+      usleep(500000);
+      $this->canCommit(++$tries);
+    }
+
+    return true;
+  }
 
   /**
    * Result to collection
@@ -87,7 +91,7 @@ class Tps{
       if($i >= $from  && $i < ($from + $take)){
         
         for ($j = 0;$j < $numFields; $j++) {       
-          $arr[$fieldNames[$j]] = $row[$fieldNames[$j]];
+          $arr[strtolower($fieldNames[$j])] = utf8_encode($row[$fieldNames[$j]]);
         }
 
         $collection->push($arr);
@@ -136,7 +140,7 @@ class Tps{
       }
       
     }catch(\Exception $ex){
-      throw new \Exception($ex);    
+      throw new Exception($ex);  
     }finally{
       $this->close();
     }
@@ -147,8 +151,17 @@ class Tps{
   /**
    * Connect to DB
    */
-  private function connect(){
-    $this->connection = odbc_connect($this->connectionString,$this->user,$this->pass);
+  private function connect($tries = 1){
+    try{
+      $this->connection = odbc_connect(env('ODBC_DSN'),'','');      
+    }catch(\Exception $ex){
+      if($tries > 5){ 
+        flock($this->lf,LOCK_UN);
+         die($ex); 
+        }
+      usleep(500000);
+      $this->connect(++$tries);
+    }     
   }
 
 
@@ -156,9 +169,13 @@ class Tps{
    * Close connection
    */
   private function close(){
-    try{
-      odbc_close($this->connection);
-    }catch(\Exception $ex){}    
+    try{  
+      odbc_close($this->connection);     
+    }catch(\Exception $ex){  
+      usleep(500000);  
+    }finally{
+       flock($this->lf,LOCK_UN);
+    }    
   }
 
 }
