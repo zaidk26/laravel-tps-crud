@@ -1,14 +1,14 @@
 # laravel-tps-crud
 Helper class to to perform CRUD operations on a Clarion Top Speed Database.
-Please note you will need to purchase the softvelocity Tps ODBC Driver
+Please note you will need to purchase the softvelocity Tps ODBC Driver.
+The TPS ODBC Driver crashes with multiple concurrent connection hence , this
+class implement PHP flock to ensur only a single requests run at a time.
+
+Create a system or user DSN and refernce it in env
 
 # .env sample
 
-ODBC_DRIVER="{SoftVelocity Topspeed driver (*.tps)}"
-
-ODBC_DATABASE="Z:\\Test\\CellularRepairs\\SSSCL\\"
-
-ODBC_PASSWORD=123456
+ODBC_DSN="my-dsn"
 
 # Install
 
