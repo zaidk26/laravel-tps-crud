@@ -30,7 +30,7 @@ class Tps{
 
   /**
    * Check if connection can be made
-   * Limit to less then 2 connections at a given time
+   * Limit to 1 connections at a given time
    */
   private function canConnect($tries){  
    
@@ -39,7 +39,7 @@ class Tps{
     $this->lf = fopen('commit.lock', 'r+');
     if (!flock($this->lf, LOCK_EX)) {
       usleep(500000);
-      $this->canCommit(++$tries);
+      $this->canConnect(++$tries);
     }
 
     return true;
@@ -132,6 +132,7 @@ class Tps{
   private function execQuery($query){
     try{
 
+      $this->canConnect(1);
       $this->connect();      
       $result = odbc_exec($this->connection, $query);
 
