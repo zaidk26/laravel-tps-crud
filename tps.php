@@ -141,7 +141,7 @@ class Tps{
       }
       
     }catch(\Exception $ex){
-      throw new Exception($ex);  
+      throw new \Exception($ex);  
     }finally{
       $this->close();
     }
